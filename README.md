@@ -1,36 +1,144 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Generador de Repos para Cátedra
 
-## Getting Started
+Herramienta interna para crear repositorios de estudiantes en masa a partir de un template y asignarles permisos automáticamente.
 
-First, run the development server:
+## 🚀 Objetivo
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Reemplazar el flujo inestable de GitHub Classroom por un proceso controlado:
+
+- Crear repos: `tp1-usuario`
+- Basados en un template
+- Invitar automáticamente a cada alumno
+- Evitar errores 500, duplicados y reprocesos manuales
+
+---
+
+## ⚙️ Requisitos
+
+- Node.js 18+
+- Cuenta de GitHub con permisos sobre la organización
+- Token de GitHub con permisos `repo`
+
+---
+
+## 🔐 Configuración
+
+Crear archivo:
+
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+.env.local
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Agregar:
 
-## Learn More
+```
 
-To learn more about Next.js, take a look at the following resources:
+GITHUB_TOKEN=tu_token
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+````
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+> El token debe tener acceso a la organización y permisos para crear repos e invitar colaboradores.
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## ▶️ Ejecución local
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm install
+npm run dev
+````
+
+Abrir en navegador:
+
+```
+http://localhost:3000
+```
+
+---
+
+## 🧪 Uso
+
+1. Completar:
+
+   * Organización
+   * Repo template (debe estar marcado como template en GitHub)
+   * Prefijo (ej: `tp1`)
+
+2. Ingresar usuarios (uno por línea):
+
+```
+usuario1
+usuario2
+usuario3
+```
+
+3. Click en **"Crear repos + invitar"**
+
+---
+
+## 🔄 Comportamiento
+
+Para cada usuario:
+
+1. Se crea el repo:
+
+```
+[prefijo]-[usuario]
+```
+
+2. Se basa en el template indicado
+
+3. Se envía invitación con permisos de escritura
+
+---
+
+## ⚠️ Consideraciones
+
+* Si el repo ya existe, no falla (idempotente)
+* No volver a ejecutar con los mismos usuarios sin revisar resultados
+* Los usuarios deben existir en GitHub
+
+---
+
+## 🧱 Stack
+
+* Next.js (App Router)
+* TailwindCSS
+* GitHub REST API
+
+---
+
+## 📌 Estado del proyecto
+
+MVP funcional:
+
+* Creación de repos ✔
+* Invitaciones ✔
+* UI básica ✔
+
+Pendiente:
+
+* OAuth GitHub
+* Carga CSV
+* Validación de usuarios
+* Reportes exportables
+
+---
+
+## 🧑‍🏫 Uso recomendado
+
+Cada docente puede:
+
+1. Clonar el repositorio
+2. Configurar su token
+3. Ejecutar localmente
+
+---
+
+## 📣 Nota
+
+Esta herramienta surge como alternativa a limitaciones prácticas de GitHub Classroom en contextos de alta escala (cursos numerosos).
+
+---
