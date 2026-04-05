@@ -23,18 +23,22 @@ Diseñada como alternativa práctica a los problemas de confiabilidad de GitHub 
 - ✅ Manejo de repos existentes (idempotente)
 - ✅ Control de errores por usuario
 - ✅ Interfaz web simple y rápida (modo oscuro)
+- ✅ Login con GitHub (OAuth)
+- ✅ Selección de organización desde la UI
 - ✅ Ejecución local sin dependencias externas
 
 ---
 
 ## 🖼️ Vista general
 
-Interfaz web minimalista donde el docente:
+Interfaz web donde el docente:
 
-1. Define organización y template
-2. Ingresa lista de usuarios
-3. Ejecuta el proceso
-4. Obtiene resultados por alumno (OK / ERROR)
+1. Inicia sesión con GitHub
+2. Selecciona una organización autorizada
+3. Define template y prefijo
+4. Ingresa lista de usuarios
+5. Ejecuta el proceso
+6. Obtiene resultados por alumno (OK / ERROR)
 
 ---
 
@@ -43,7 +47,6 @@ Interfaz web minimalista donde el docente:
 1. Clonar el repositorio:
 
 ```bash
-
 git clone <repo-url>
 cd <repo>
 ```
@@ -51,39 +54,57 @@ cd <repo>
 2. Instalar dependencias:
 
 ```bash
-
 npm install
 ```
 
 ---
-# 📌 Requisitos del token
 
-* Permiso `repo`
-* Acceso a la organización
-* Capacidad de crear repos e invitar colaboradores
+# 📌 Requisitos
 
+## 🔐 Opción 1 — OAuth (recomendado)
 
-## 🔐 GitHub Fine-Grained Token (Organización)
+* No requiere token manual
+* Cada docente usa sus propios permisos
+* Necesita configurar una GitHub OAuth App
 
-1. Ir a https://github.com/settings/tokens  
-2. Click en **Generate new token (fine-grained)**  
+### Variables de entorno
+
+```env
+GITHUB_CLIENT_ID=...
+GITHUB_CLIENT_SECRET=...
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=...
+```
+
+---
+
+## 🔐 Opción 2 — Token (fallback)
+
+### GitHub Fine-Grained Token (Organización)
+
+1. Ir a [https://github.com/settings/tokens](https://github.com/settings/tokens)
+
+2. Click en **Generate new token (fine-grained)**
+
 3. Configurar:
-   - **Resource owner** → seleccionar la organización
-   - **Repository access** → All repositories  
+
+   * **Resource owner** → seleccionar la organización
+   * **Repository access** → All repositories
 
 4. Permisos:
 
    **Repository permissions**
-   - Contents → Read & Write  
-   - Administration → Read & Write  
+
+   * Contents → Read & Write
+   * Administration → Read & Write
 
    **Organization permissions**
-   - Members → Read  
+
+   * Members → Read
 
 5. Generar el token y copiarlo
 
-6. Aprobar el token en la organización (Si aplica, no siempre lo requiere GitHub)
-
+6. Aprobar el token en la organización (si aplica)
 
 ⚠️ **IMPORTANTE:** El usuario debe ser owner/admin de la organización
 
@@ -97,7 +118,7 @@ Crear archivo:
 .env.local
 ```
 
-Agregar:
+Agregar (solo si usás token):
 
 ```
 GITHUB_TOKEN=tu_token
@@ -121,13 +142,16 @@ http://localhost:3000
 
 ## 🎯 Uso
 
-1. Completar los campos:
+1. Iniciar sesión con GitHub
 
-   * **Organización** (ej: `mi-org`)
+2. Seleccionar organización desde el selector
+
+3. Completar:
+
    * **Repo template** (ej: `tp1-template`)
    * **Prefijo** (ej: `tp1`)
 
-2. Ingresar usuarios (uno por línea):
+4. Ingresar usuarios (uno por línea):
 
 ```
 usuario1
@@ -135,7 +159,7 @@ usuario2
 usuario3
 ```
 
-3. Click en:
+5. Click en:
 
 👉 **"Crear repos + invitar"**
 
@@ -162,6 +186,7 @@ Para cada usuario:
 ## ⚠️ Consideraciones importantes
 
 * El repo template debe estar marcado como **Template Repository**
+* Las organizaciones deben autorizar la OAuth App para ser visibles
 * Los usuarios deben existir en GitHub
 * Si el repo ya existe, no se recrea (comportamiento seguro)
 * No ejecutar múltiples veces sin revisar resultados
@@ -173,6 +198,7 @@ Para cada usuario:
 
 * Next.js (App Router)
 * TailwindCSS
+* NextAuth (OAuth GitHub)
 * GitHub REST API
 
 ---
@@ -181,8 +207,10 @@ Para cada usuario:
 
 ```
 /app
- ├── page.tsx          # UI principal
- └── api/process       # Lógica backend (creación + invitaciones)
+ ├── page.tsx              # UI principal
+ ├── api/process           # Creación + invitaciones
+ ├── api/orgs              # Obtención de organizaciones
+ └── api/auth              # OAuth (NextAuth)
 ```
 
 ---
@@ -195,10 +223,11 @@ MVP funcional en uso real:
 * Invitaciones ✔
 * UI funcional ✔
 * Manejo de errores ✔
+* OAuth GitHub ✔
+* Selector de organizaciones ✔
 
 Pendiente:
 
-* OAuth GitHub (multi-docente)
 * Carga de CSV
 * Validación automática de usuarios
 * Exportación de resultados
@@ -210,18 +239,19 @@ Pendiente:
 Cada docente puede:
 
 1. Clonar el repositorio
-2. Configurar su token
-3. Ejecutar localmente
-4. Generar repos sin depender de GitHub Classroom
+2. Ejecutar localmente
+3. Iniciar sesión con GitHub
+4. Seleccionar su organización
+5. Generar repos sin depender de GitHub Classroom
 
 ---
 
 ## 🤝 Créditos y agradecimientos
 
-Este proyecto surge en el ámbito de la **Universidad Nacional de Hurlingham (UNaHur)**, a partir de un problema real al utilizar GitHub Classroom en cursos con gran cantidad de estudiantes.  
+Este proyecto surge en el ámbito de la **Universidad Nacional de Hurlingham (UNaHur)**, a partir de un problema real al utilizar GitHub Classroom en cursos con gran cantidad de estudiantes.
 En particular, las fallas en la generación de invitaciones (errores 500, accesos incompletos y repositorios duplicados) generaban una sobrecarga operativa significativa para el equipo docente, obligando a intervenir manualmente en cientos de casos.
 
-Aportes clave:  
+Aportes clave:
 💡 Esta es la evolución de una solución previa desarrollada en Python por [**Hernán Coniglio**](https://github.com/hernanconiglio), cuyo trabajo original fue fundamental para identificar el problema y establecer una primera automatización para mitigar estos inconvenientes.
 
 A partir de esa base, se desarrolló esta versión, orientada a mejorar la usabilidad, reducir la intervención manual y escalar la solución de forma confiable en contextos reales de cursadas numerosas.
@@ -276,4 +306,3 @@ Uso interno / educativo. Adaptar según necesidad.
 Desarrollado como herramienta de soporte docente para mejorar la gestión de trabajos prácticos en entornos de programación.
 
 ---
-
