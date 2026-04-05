@@ -1,7 +1,7 @@
 "use client";
 
 import { signIn, signOut, useSession } from "next-auth/react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function Home() {
   const [org, setOrg] = useState("");
@@ -10,8 +10,20 @@ export default function Home() {
   const [usersText, setUsersText] = useState("");
   const [result, setResult] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-
+  const [orgs, setOrgs] = useState<any[]>([]);
   const { data: session } = useSession();
+
+  useEffect(() => {
+    if (!session?.accessToken) return;
+
+    fetch("/api/orgs", {
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+      },
+    })
+      .then((res) => res.json())
+      .then((data) => setOrgs(data));
+  }, [session]);
 
   const handleSubmit = async () => {
     const users = usersText
@@ -45,7 +57,6 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-gray-900 text-gray-100 flex items-center justify-center p-6">
       <div className="w-full max-w-2xl bg-gray-800 rounded-2xl shadow-xl p-6">
-
         {/* HEADER */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-xl font-bold">Generador de Repos</h1>
@@ -59,9 +70,7 @@ export default function Home() {
             </button>
           ) : (
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-gray-400">
-                {session.user?.email}
-              </span>
+              <span className="text-gray-400">{session.user?.email}</span>
               <button
                 onClick={() => signOut()}
                 className="px-2 py-1 bg-red-600 hover:bg-red-700 rounded"
@@ -74,12 +83,25 @@ export default function Home() {
 
         {/* FORM */}
         <div className="space-y-3">
-          <input
-            placeholder="Organización (mi-org)"
+          <select
             value={org}
             onChange={(e) => setOrg(e.target.value)}
-            className="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+            className="w-full p-2 rounded bg-gray-700 border border-gray-600"
+          >
+            <option value="">Seleccionar organización</option>
+            {orgs.map((o) => (
+              <option key={o.id} value={o.login}>
+                {o.login}
+              </option>
+            ))}
+          </select>
+          
+          {orgs.length === 0 && (
+            <p className="text-sm text-yellow-400">
+              No se encontraron organizaciones. Asegurate de haber autorizado la
+              aplicación en GitHub.
+            </p>
+          )}
 
           <input
             placeholder="Repo template (tp1-template)"
@@ -118,9 +140,7 @@ export default function Home() {
             <div
               key={i}
               className={`p-2 mb-2 rounded text-sm ${
-                r.status === "ok"
-                  ? "bg-green-700"
-                  : "bg-red-700"
+                r.status === "ok" ? "bg-green-700" : "bg-red-700"
               }`}
             >
               <strong>{r.username}</strong> — {r.status}
@@ -132,7 +152,6 @@ export default function Home() {
             </div>
           ))}
         </div>
-
       </div>
     </main>
   );
