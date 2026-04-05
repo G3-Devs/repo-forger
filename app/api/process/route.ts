@@ -1,3 +1,5 @@
+// app/api/process/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -5,7 +7,8 @@ export async function POST(req: NextRequest) {
 
   const { org, template, repoBase, users } = body;
 
-  const token = process.env.GITHUB_TOKEN;
+  const token = body.token || process.env.GITHUB_TOKEN;
+  // const token = process.env.GITHUB_TOKEN;
 
   if (!token) {
     return NextResponse.json({ error: "No token" }, { status: 500 });
