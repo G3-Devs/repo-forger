@@ -63,7 +63,11 @@ export default function Home() {
 
           {!session ? (
             <button
-              onClick={() => signIn("github")}
+              onClick={() =>
+                signIn("github", {
+                  prompt: "consent",
+                })
+              }
               className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded"
             >
               Login GitHub
@@ -95,7 +99,7 @@ export default function Home() {
               </option>
             ))}
           </select>
-          
+
           {orgs.length === 0 && (
             <p className="text-sm text-yellow-400">
               No se encontraron organizaciones. Asegurate de haber autorizado la
