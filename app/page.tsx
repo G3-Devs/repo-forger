@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { signIn, signOut, useSession } from "next-auth/react";
@@ -11,19 +12,42 @@ export default function Home() {
   const [result, setResult] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [orgs, setOrgs] = useState<any[]>([]);
+  const [loadingOrgs, setLoadingOrgs] = useState(false);
+
   const { data: session } = useSession();
+
+  const fetchOrgs = async () => {
+    if (!session?.accessToken) return;
+
+    setLoadingOrgs(true);
+
+    const res = await fetch("/api/orgs", {
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+      },
+    });
+
+    const data = await res.json();
+    setOrgs(data);
+    setLoadingOrgs(false);
+  };
 
   useEffect(() => {
     if (!session?.accessToken) return;
 
-    fetch("/api/orgs", {
-      headers: {
-        Authorization: `Bearer ${session.accessToken}`,
-      },
-    })
-      .then((res) => res.json())
-      .then((data) => setOrgs(data));
-  }, [session]);
+    const run = async () => {
+      const res = await fetch("/api/orgs", {
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+      });
+
+      const data = await res.json();
+      setOrgs(data);
+    };
+
+    run();
+  }, [session?.accessToken]);
 
   const handleSubmit = async () => {
     const users = usersText
@@ -71,6 +95,21 @@ export default function Home() {
           ) : (
             <div className="flex items-center gap-2 text-sm">
               <span className="text-gray-400">{session.user?.email}</span>
+
+              <button
+                onClick={() => signIn("github", { prompt: "consent" })}
+                className="px-2 py-1 bg-yellow-600 hover:bg-yellow-700 rounded"
+              >
+                Actualizar permisos
+              </button>
+
+              <button
+                onClick={fetchOrgs}
+                className="px-2 py-1 bg-gray-600 hover:bg-gray-500 rounded"
+              >
+                Refrescar
+              </button>
+
               <button
                 onClick={() => signOut()}
                 className="px-2 py-1 bg-red-600 hover:bg-red-700 rounded"
@@ -95,11 +134,14 @@ export default function Home() {
               </option>
             ))}
           </select>
-          
-          {orgs.length === 0 && (
+
+          {loadingOrgs && (
+            <p className="text-sm text-gray-400">Cargando organizaciones...</p>
+          )}
+
+          {!loadingOrgs && orgs.length === 0 && (
             <p className="text-sm text-yellow-400">
-              No se encontraron organizaciones. Asegurate de haber autorizado la
-              aplicación en GitHub.
+              No se encontraron organizaciones. Probá actualizar permisos.
             </p>
           )}
 
