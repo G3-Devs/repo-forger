@@ -66,9 +66,9 @@ git push origin resetOAuth
 
 Fuí a:
 
-👉 [https://github.com/settings/applications/[#####]](https://github.com/settings/applications/#####)
+👉 [https://github.com/settings/developers](https://github.com/settings/developers)
 
-Para modificar:
+Para modificar en "asigna-repos-github":
 
 ```
 Callback URL → http://localhost:3000/api/auth/callback/github
