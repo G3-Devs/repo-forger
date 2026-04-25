@@ -12,6 +12,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [orgs, setOrgs] = useState<any[]>([]);
   const { data: session } = useSession();
+  const [templates, setTemplates] = useState<any[]>([]);
 
   useEffect(() => {
     if (!session?.accessToken) return;
@@ -24,6 +25,28 @@ export default function Home() {
       .then((res) => res.json())
       .then((data) => setOrgs(data));
   }, [session]);
+
+  //Sugerir los templates de la orga seleccionada
+  useEffect(() => {
+    // Solo buscamos si hay una organización seleccionada
+    if (!org || !session?.accessToken) {
+      setTemplates([]); // Limpiamos si no hay org
+      return;
+    }
+
+    fetch(`/api/templates?org=${org}`, {
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+      },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setTemplates(data);
+        }
+      })
+      .catch(err => console.error("Error cargando templates", err));
+  }, [org, session]); // Se dispara cada vez que cambia 'org'
 
   const handleSubmit = async () => {
     const users = usersText
@@ -95,7 +118,7 @@ export default function Home() {
               </option>
             ))}
           </select>
-          
+
           {orgs.length === 0 && (
             <p className="text-sm text-yellow-400">
               No se encontraron organizaciones. Asegurate de haber autorizado la
@@ -103,15 +126,28 @@ export default function Home() {
             </p>
           )}
 
-          <input
-            placeholder="Repo template (tp1-template)"
-            value={template}
-            onChange={(e) => setTemplate(e.target.value)}
-            className="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+          <div className="space-y-1">
+            <input
+              list="templates-datalist"
+              placeholder="Repo template (escribí para buscar...)"
+              value={template}
+              onChange={(e) => setTemplate(e.target.value)}
+              className="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <datalist id="templates-datalist">
+              {templates.map((t) => (
+                <option key={t.id} value={t.name}>
+                  {t.description}
+                </option>
+              ))}
+            </datalist>
+            {org && templates.length === 0 && (
+              <p className="text-xs text-gray-400">No se encontraron repositorios marcados como template en esta organización.</p>
+            )}
+          </div>
 
           <input
-            placeholder="Prefijo (tp1)"
+            placeholder="Prefijo (prefijo-nombre del template)"
             value={repoBase}
             onChange={(e) => setRepoBase(e.target.value)}
             className="w-full p-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -139,9 +175,8 @@ export default function Home() {
           {result.map((r, i) => (
             <div
               key={i}
-              className={`p-2 mb-2 rounded text-sm ${
-                r.status === "ok" ? "bg-green-700" : "bg-red-700"
-              }`}
+              className={`p-2 mb-2 rounded text-sm ${r.status === "ok" ? "bg-green-700" : "bg-red-700"
+                }`}
             >
               <strong>{r.username}</strong> — {r.status}
               {r.detail && (
