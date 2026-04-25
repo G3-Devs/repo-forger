@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 export async function POST(req: NextRequest) {
   const body = await req.json();
 
-  const { org, template, repoBase, users } = body;
+  const { org, template, repoBase, users, isPrivate } = body;
 
   const token = body.token || process.env.GITHUB_TOKEN;
   // const token = process.env.GITHUB_TOKEN;
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             owner: org,
             name: repoName,
-            private: true,
+            private: isPrivate,
           }),
         }
       );
