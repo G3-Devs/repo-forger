@@ -39,7 +39,7 @@ const content = {
     publicDesc: "Cualquiera puede ver estos repositorios.",
     private: "Privado",
     privateDesc: "Vos elegís quién puede ver y commitear.",
-    students: "Nombres de usuario de GitHub de l@s alumn@s(uno por línea)",
+    students: "Nombres de usuario de GitHub de l@s alumn@s (uno por línea)",
     button: "Generar repositorios",
     processing: "Forjando repositorios...",
     results: "Resultados del proceso:",
@@ -91,13 +91,13 @@ export default function Page() {
   };
 
   return (
-    <main className="min-h-screen bg-[#0a0f1e] text-[#d1d5db] flex flex-col items-center p-6 md:p-12 font-sans selection:bg-[#38bdf8]/30">
+    <main className="min-h-screen bg-[#0a0f1e] text-[#d1d5db] flex flex-col items-center p-6 md:p-12 < selection:bg-[#38bdf8]/30">
       <div className="w-full max-w-3xl space-y-8">
 
         {/* HEADER */}
         <div className="flex justify-between items-start border-b border-slate-800 pb-6">
           <div>
-            <h1 className="text-2xl font-bold text-slate-100 tracking-tight">{t.title}</h1>
+            <h1 className="text-xl font-bold text-sky-400 uppercase tracking-wider">{t.title}</h1>
             <p className="text-slate-500 text-sm mt-1">{t.subtitle}</p>
           </div>
 
@@ -164,7 +164,7 @@ export default function Page() {
                   <select
                     value={org}
                     onChange={(e) => setOrg(e.target.value)}
-                    className="bg-[#0a0f1e] border border-slate-700 rounded-md p-2 text-sm focus:border-[#38bdf8] outline-none transition"
+                    className="w-full bg-[#0a0f1e] border border-slate-700 rounded-md p-2 text-sm outline-none focus:border-[#38bdf8] transition"
                   >
                     <option value="">{t.select}</option>
                     {orgs.map((o) => <option key={o.id} value={o.login}>{o.login}</option>)}
@@ -227,17 +227,19 @@ export default function Page() {
                 value={usersText}
                 onChange={(e) => setUsersText(e.target.value)}
                 className="w-full bg-[#0a0f1e] border border-slate-700 rounded-md p-3 text-sm font-mono outline-none focus:border-[#38bdf8] resize-none transition"
-                placeholder="octocat&#10;torvalds"
+                placeholder={"Username_1\nUsername_2\n..."}
               />
             </div>
 
-            <button
-              onClick={handleSubmit}
-              disabled={loading}
-              className="w-full py-3 bg-sky-600 hover:bg-sky-500 disabled:bg-slate-800 disabled:text-slate-600 text-[#0a0f1e] rounded-md font-bold transition-all shadow-lg active:scale-95"
-            >
-              {loading ? t.processing : t.button}
-            </button>
+            <div className="flex justify-end">
+              <button
+                onClick={handleSubmit}
+                disabled={loading}
+                className="cursor-pointer p-3 bg-sky-600 hover:text-slate-700 hover:bg-sky-500 disabled:bg-slate-800 disabled:text-slate-600 text-slate-300 rounded-md font-bold transition-all shadow-lg active:scale-95"
+              >
+                {loading ? t.processing : t.button}
+              </button>
+            </div>
           </div>
         )}
 
