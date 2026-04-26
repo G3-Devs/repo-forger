@@ -10,6 +10,7 @@ const content = {
     subtitle: "Mass generation of repositories for students",
     owner: "Owner",
     prefix: "Repository prefix",
+    prefixPlaceholder: "Write generated repos prefix...",
     preview: "Generated repositories will have the structure:",
     template: "Origin template",
     templatePlaceholder: "Search for a template repo...",
@@ -24,13 +25,15 @@ const content = {
     results: "Process Results:",
     login: "Sign in with GitHub",
     logout: "Sign out",
-    select: "Select organization"
+    select: "Select organization",
+    language: "Change language"
   },
   es: {
     title: "G3 RepoForger",
     subtitle: "Generación masiva de repositorios para estudiantes",
-    owner: "Dueño / Orga",
+    owner: "Organización",
     prefix: "Prefijo del repo",
+    prefixPlaceholder: "Escribí el perfijo del repositorio...",
     preview: "Estructura de los repositorios que se generarán:",
     template: "Plantilla origen",
     templatePlaceholder: "Buscar un repositorio template...",
@@ -45,7 +48,8 @@ const content = {
     results: "Resultados del proceso:",
     login: "Iniciar sesión con GitHub",
     logout: "Cerrar sesión",
-    select: "Seleccionar organización"
+    select: "Seleccionar organización",
+    language: "Cambiar idioma"
   }
 };
 
@@ -54,7 +58,7 @@ export default function Page() {
   const [lang, setLang] = useState<"en" | "es">("es");
   const [org, setOrg] = useState("");
   const [template, setTemplate] = useState("");
-  const [repoBase, setRepoBase] = useState("tp1");
+  const [repoBase, setRepoBase] = useState("");
   const [usersText, setUsersText] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [result, setResult] = useState<any[]>([]);
@@ -94,19 +98,22 @@ export default function Page() {
     <main className="min-h-screen bg-[#0a0f1e] text-[#d1d5db] flex flex-col items-center p-6 md:p-12 < selection:bg-[#38bdf8]/30">
       <div className="w-full max-w-3xl space-y-8">
         {/* HEADER */}
-        <div className="flex justify-between items-start border-b border-slate-800 pb-6">
+        <div className="flex justify-between items-start pb-4">
           <div>
             <h1 className="text-xl font-bold text-sky-400 uppercase tracking-wider">{t.title}</h1>
             <p className="text-slate-500 text-sm mt-1">{t.subtitle}</p>
           </div>
 
-          <div className="flex flex-row items-end">
+          <div className="flex flex-row gap-2 items-end">
             {/* BOTÓN DE IDIOMA */}
             <button
+              title={t.language}
               onClick={() => setLang(l => l === "en" ? "es" : "en")}
-              className="cursor-pointer text-xs font-bold text-slate-400 border border-slate-700 px-3 py-1.5 rounded hover:bg-slate-800 transition flex items-center gap-2"
+              className="px-3 py-1.5 gap-2 cursor-pointer text-xs font-bold text-slate-400 border border-slate-700 rounded hover:bg-slate-800 transition"
             >
-              {lang === "en" ? "🇦🇷 ES" : "🇺🇸 EN"}
+              {lang === "en" 
+                ? <div className="flex flex-row gap-2"><span>🇦🇷</span><span>ES</span></div> 
+                : <div className="flex flex-row gap-2"><span>🇺🇸</span><span>EN</span></div>}
             </button>
 
             {/* BOTÓN CERRAR SESIÓN (NUEVO) */}
@@ -175,6 +182,7 @@ export default function Page() {
                 <div className="flex flex-col gap-3 flex-[1.5]">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.prefix}</label>
                   <input
+                    placeholder={t.prefixPlaceholder}
                     value={repoBase}
                     onChange={(e) => setRepoBase(e.target.value)}
                     className="p-2 bg-[#0a0f1e] border border-slate-700 rounded-md text-sm focus:border-[#38bdf8] outline-none w-full transition"
