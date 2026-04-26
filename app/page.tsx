@@ -158,7 +158,7 @@ export default function Page() {
 
             {/* OWNER / PREFIX */}
             <div className="flex flex-col gap-2">
-              <div className="flex flex-col md:flex-row md:items-end gap-0 md:gap-3">
+              <div className="flex flex-col md:flex-row md:items-end gap-0 md:gap-3 sm:gap-3">
                 <div className="flex flex-col gap-2 flex-1">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.owner}</label>
                   <select
@@ -188,14 +188,14 @@ export default function Page() {
             </div>
 
             {/* TEMPLATE */}
-            <div className="space-y-2 pt-4 border-t border-slate-800/50">
+            <div className="space-y-2 pt-1 border-t border-slate-800/50">
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.template}</label>
               <input
                 list="templates-datalist"
                 placeholder={t.templatePlaceholder}
                 value={template}
                 onChange={(e) => setTemplate(e.target.value)}
-                className="w-full bg-[#0a0f1e] border border-slate-700 rounded-md p-2 text-sm outline-none focus:border-[#38bdf8] transition"
+                className="mt-2 w-full bg-[#0a0f1e] border border-slate-700 rounded-md p-2 text-sm outline-none focus:border-[#38bdf8] transition"
               />
               <datalist id="templates-datalist">
                 {templates.map((t) => <option key={t.id} value={t.name}>{t.description}</option>)}
@@ -203,7 +203,10 @@ export default function Page() {
             </div>
 
             {/* VISIBILIDAD */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-800/50">
+            <div className="border-t border-slate-800/50 pt-1">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.visibility}</label>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {[{ val: false, lab: t.public, desc: t.publicDesc }, { val: true, lab: t.private, desc: t.privateDesc }].map((opt) => (
                 <div
                   key={String(opt.val)}
@@ -220,13 +223,13 @@ export default function Page() {
             </div>
 
             {/* USERNAMES */}
-            <div className="space-y-2 pt-4 border-t border-slate-800/50">
+            <div className="space-y-2 pt-1 border-t border-slate-800/50">
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.students}</label>
               <textarea
                 rows={5}
                 value={usersText}
                 onChange={(e) => setUsersText(e.target.value)}
-                className="w-full bg-[#0a0f1e] border border-slate-700 rounded-md p-3 text-sm font-mono outline-none focus:border-[#38bdf8] resize-none transition"
+                className="mt-2 w-full bg-[#0a0f1e] border border-slate-700 rounded-md p-3 text-sm font-mono outline-none focus:border-[#38bdf8] resize-none transition"
                 placeholder={"Username_1\nUsername_2\n..."}
               />
             </div>
