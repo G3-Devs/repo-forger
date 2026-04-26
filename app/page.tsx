@@ -93,7 +93,6 @@ export default function Page() {
   return (
     <main className="min-h-screen bg-[#0a0f1e] text-[#d1d5db] flex flex-col items-center p-6 md:p-12 < selection:bg-[#38bdf8]/30">
       <div className="w-full max-w-3xl space-y-8">
-
         {/* HEADER */}
         <div className="flex justify-between items-start border-b border-slate-800 pb-6">
           <div>
@@ -157,8 +156,8 @@ export default function Page() {
             </div>
 
             {/* OWNER / PREFIX */}
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-col md:flex-row md:items-end gap-0 md:gap-3 sm:gap-3">
+            <div className="flex flex-col gap-2 mb-10">
+              <div className="flex flex-col md:flex-row md:items-end gap-4 md:gap-3 sm:gap-3">
                 <div className="flex flex-col gap-2 flex-1">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.owner}</label>
                   <select
@@ -188,7 +187,7 @@ export default function Page() {
             </div>
 
             {/* TEMPLATE */}
-            <div className="space-y-2 pt-1 border-t border-slate-800/50">
+            <div className="pt-1 border-t border-slate-800/50 mb-10">
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.template}</label>
               <input
                 list="templates-datalist"
@@ -203,23 +202,25 @@ export default function Page() {
             </div>
 
             {/* VISIBILIDAD */}
-            <div className="border-t border-slate-800/50 pt-1">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.visibility}</label>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[{ val: false, lab: t.public, desc: t.publicDesc }, { val: true, lab: t.private, desc: t.privateDesc }].map((opt) => (
-                <div
-                  key={String(opt.val)}
-                  onClick={() => setIsPrivate(opt.val)}
-                  className={`flex items-start gap-3 cursor-pointer border rounded-md p-4 transition ${isPrivate === opt.val ? 'bg-slate-900 border-[#38bdf8] ring-1 ring-[#38bdf8]/20' : 'bg-transparent border-slate-800 hover:border-slate-700'}`}
-                >
-                  <input type="radio" checked={isPrivate === opt.val} readOnly className="mt-1" />
-                  <div className="text-sm">
-                    <p className={`font-bold ${isPrivate === opt.val ? 'text-[#38bdf8]' : 'text-slate-300'}`}>{opt.lab}</p>
-                    <p className="text-xs text-slate-600">{opt.desc}</p>
+            <div className="space-y-4 mb-10">
+              <div className="border-t border-slate-800/50 pt-1">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.visibility}</label>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[{ val: false, lab: t.public, desc: t.publicDesc }, { val: true, lab: t.private, desc: t.privateDesc }].map((opt) => (
+                  <div
+                    key={String(opt.val)}
+                    onClick={() => setIsPrivate(opt.val)}
+                    className={`flex items-start gap-3 cursor-pointer border rounded-md p-4 transition ${isPrivate === opt.val ? 'bg-slate-900 border-[#38bdf8] ring-1 ring-[#38bdf8]/20' : 'bg-transparent border-slate-800 hover:border-slate-700'}`}
+                  >
+                    <input type="radio" checked={isPrivate === opt.val} readOnly className="mt-1" />
+                    <div className="text-sm">
+                      <p className={`font-bold ${isPrivate === opt.val ? 'text-[#38bdf8]' : 'text-slate-300'}`}>{opt.lab}</p>
+                      <p className="text-xs text-slate-600">{opt.desc}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
 
             {/* USERNAMES */}
@@ -229,7 +230,7 @@ export default function Page() {
                 rows={5}
                 value={usersText}
                 onChange={(e) => setUsersText(e.target.value)}
-                className="mt-2 w-full bg-[#0a0f1e] border border-slate-700 rounded-md p-3 text-sm font-mono outline-none focus:border-[#38bdf8] resize-none transition"
+                className="mt-5 w-full bg-[#0a0f1e] border border-slate-700 rounded-md p-3 text-sm font-mono outline-none focus:border-[#38bdf8] resize-none transition"
                 placeholder={"Username_1\nUsername_2\n..."}
               />
             </div>
