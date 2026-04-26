@@ -157,7 +157,7 @@ export default function Page() {
         ) : (
           <div className="space-y-6 animate-in fade-in duration-500">
 
-            {/* USUARIO CONECTADO (OPCIONAL) */}
+            {/* USUARIO CONECTADO (OPCIONAL) */} 
             <div className="flex justify-end">
               <span className="text-[10px] font-mono text-slate-600">{session.user?.email}</span>
             </div>
