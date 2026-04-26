@@ -1,4 +1,4 @@
-# 🧩 Generador de Repos GitHub para Cátedra
+# 🧩 Generador de Repos GitHub para Cátedra - dev
 
 ![Estado](https://img.shields.io/badge/estado-MVP%20funcional-success)
 
