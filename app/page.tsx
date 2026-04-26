@@ -205,7 +205,7 @@ export default function Page() {
                 className="mt-2 w-full bg-[#0a0f1e] border border-slate-700 rounded-md p-2 text-sm outline-none focus:border-[#38bdf8] transition"
               />
               <datalist id="templates-datalist">
-                {templates.map((t) => <option key={t.id} value={t.name}>{t.description}</option>)}
+                {templates.map((t) => <option key={t.id} value={t.name}>{t.name}</option>)}
               </datalist>
             </div>
 
