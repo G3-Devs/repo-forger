@@ -71,6 +71,7 @@ export default function Page() {
   const [orgs, setOrgs] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
 
   const t = content[lang];
 
@@ -96,7 +97,7 @@ export default function Page() {
       });
   }, [session]);
 
-  //Fetch templates (cachea en s>ssionStorage para no recargar)
+  //Fetch templates (cachea en sessionStorage para no recargar)
   useEffect(() => {
     if (!org || !session?.accessToken) {
       setTemplates([]);
@@ -130,18 +131,57 @@ export default function Page() {
       .finally(() => setLoadingTemplates(false));
   }, [org, session]);
 
+  //Generar repos
   const handleSubmit = async () => {
     const users = usersText.split("\n").map(u => u.trim()).filter(Boolean);
-    if (!org || !template || users.length === 0) return alert(lang === "en" ? "Please fill all fields" : "Por favor completá todos los campos");
+    if (!org || !template || users.length === 0) {
+      return alert(lang === "en" ? "Please fill all fields" : "Por favor completá todos los campos");
+    }
+
     setLoading(true);
-    try {
-      const res = await fetch("/api/process", {
-        method: "POST",
-        body: JSON.stringify({ org, template, repoBase, users, isPrivate, token: session?.accessToken }),
-      });
-      const data = await res.json();
-      setResult(data.results || []);
-    } finally { setLoading(false); }
+    setResult([]);
+    setProgress({ current: 0, total: 0 });
+
+    const res = await fetch("/api/process", {
+      method: "POST",
+      body: JSON.stringify({ org, template, repoBase, users, isPrivate, token: session?.accessToken }),
+    });
+
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const parsed = JSON.parse(line);
+
+          if (parsed.type === "result") {
+            setResult(prev => [...prev, parsed]);
+          }
+          if (parsed.type === "progress") {
+            setProgress({ current: parsed.current, total: parsed.total });
+          }
+          if (parsed.type === "rate_limit") {
+            console.warn(`Rate limit alcanzado, esperando ${Math.ceil(parsed.waitMs / 1000)}s...`);
+          }
+          if (parsed.type === "done") {
+            setLoading(false);
+            setTimeout(() => setProgress({ current: 0, total: 0 }), 2000);
+          }
+        } catch { /* línea incompleta, ignorar */ }
+      }
+    }
+
+    setLoading(false);
   };
 
   const refreshTemplates = () => {
@@ -329,8 +369,8 @@ export default function Page() {
               </div>
             </div>
 
-            {/* USERNAMES */}
-            <div className="space-y-2 pt-1 border-t border-slate-800/50">
+            {/* USERNAMES Y BOTÓN GENERAR*/}
+            <div className="space-y-4 pt-1 border-t border-slate-800/50">
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.students}</label>
               <textarea
                 rows={5}
@@ -339,16 +379,62 @@ export default function Page() {
                 className="mt-5 w-full bg-[#0a0f1e] border border-slate-700 rounded-md p-3 text-sm font-mono outline-none focus:border-[#38bdf8] resize-none transition"
                 placeholder={"Username_1\nUsername_2\n..."}
               />
-            </div>
+              {/* Botón generar */}
+              <div className="flex flex-col items-end">
+                {/* Botón */}
+                <button
+                  onClick={handleSubmit}
+                  disabled={loading}
+                  className="relative overflow-hidden min-w-48 px-6 py-2.5 rounded-md font-bold text-sm transition-all duration-300 shadow-lg active:scale-95 disabled:cursor-not-allowed border cursor-pointer hover:shadow-sky-500/20 hover:shadow-xl hover:border-sky-500/70 hover:bg-sky-950/30"
+                  style={{
+                    borderColor: loading ? "#1e3a4a" : "#0284c7",
+                    color: loading ? "#94a3b8" : "#e2e8f0",
+                    backgroundColor: "transparent",
+                  }}
+                >
+                  {/* Barra de progreso que llena el fondo */}
+                  {loading && progress.total > 0 && (
+                    <div
+                      className="absolute inset-0 bg-sky-900/40 transition-all duration-500 ease-out origin-left"
+                      style={{ transform: `scaleX(${progress.current / progress.total})` }}
+                    />
+                  )}
 
-            <div className="flex justify-end">
-              <button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="cursor-pointer p-3 bg-sky-600 hover:text-slate-700 hover:bg-sky-500 disabled:bg-slate-800 disabled:text-slate-600 text-slate-300 rounded-md font-bold transition-all shadow-lg active:scale-95"
-              >
-                {loading ? t.processing : t.button}
-              </button>
+                  {/* Texto con transiciones */}
+                  <span className="relative z-10 flex items-center justify-center gap-2">
+                    {loading ? (
+                      progress.current >= progress.total && progress.total > 0 ? (
+                        // Estado: ¡Listo!
+                        <span className="flex items-center gap-2 text-emerald-400 animate-in fade-in duration-500">
+                          <img src="/icon.png" width={16} height={16} alt="" className="rounded-sm" />
+                          {lang === "es" ? "¡Listo!" : "Done!"}
+                        </span>
+                      ) : (
+                        // Estado: cargando
+                        <span className="flex items-center gap-2 animate-in fade-in duration-300">
+                          <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                            <path d="M21 3v5h-5" />
+                            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                            <path d="M8 16H3v5" />
+                          </svg>
+                          {lang === "es" ? "Forjando..." : "Forging..."}
+                        </span>
+                      )
+                    ) : (
+                      // Estado: idle
+                      <span className="flex items-center gap-2 animate-in fade-in duration-300">
+                        {t.button}
+                        <img src="/icon.png" width={16} height={16} alt="" className="rounded-sm" />
+                      </span>
+                    )}
+                  </span>
+                </button>
+                {/* Contador */}
+                <div className={`max-w-48 text-right mt-2 text-xs text-slate-500 font-mono transition-opacity duration-500 ${loading && progress.total > 0 ? "opacity-100" : "opacity-0"}`}>
+                  Progreso: {progress.current} / {progress.total} ({Math.round((progress.current / progress.total) * 100)}%)
+                </div>
+              </div>
             </div>
           </div>
         )}
