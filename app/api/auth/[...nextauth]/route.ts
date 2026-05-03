@@ -9,7 +9,7 @@ const handler = NextAuth({
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
       authorization: {
         params: {
-          scope: "repo read:org",
+          scope: "read:org repo delete_repo"
         },
       },
     }),
