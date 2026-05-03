@@ -13,7 +13,7 @@ const content = {
     prefixPlaceholder: "Write generated repos prefix...",
     preview: "Generated repositories will have the structure:",
     template: "Origin template",
-    templatePlaceholder: "Search for a template repo...",
+    templatePlaceholder: "Write or select template repo name...",
     visibility: "Choose visibility",
     public: "Public",
     publicDesc: "Anyone can see these repositories.",
@@ -36,7 +36,7 @@ const content = {
     prefixPlaceholder: "Escribí el perfijo del repositorio...",
     preview: "Estructura de los repositorios que se generarán:",
     template: "Plantilla origen",
-    templatePlaceholder: "Buscar un repositorio template...",
+    templatePlaceholder: "Escribí o seleccioná el nombre de la plantilla...",
     visibility: "Elegir visibilidad",
     public: "Público",
     publicDesc: "Cualquiera puede ver estos repositorios.",
@@ -75,9 +75,18 @@ export default function Page() {
   }, [session]);
 
   useEffect(() => {
-    if (!org || !session?.accessToken) { setTemplates([]); return; }
-    fetch(`/api/templates?org=${org}`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
-      .then(res => res.json()).then(data => { if (Array.isArray(data)) setTemplates(data); });
+    if (!org || !session?.accessToken) {
+      setTemplates([]);
+      return;
+    }
+
+    setTemplates([]); // ← limpia inmediatamente antes del fetch
+
+    fetch(`/api/templates?org=${org}`, {
+      headers: { Authorization: `Bearer ${session.accessToken}` }
+    })
+      .then(res => res.json())
+      .then(data => { if (Array.isArray(data)) setTemplates(data); });
   }, [org, session]);
 
   const handleSubmit = async () => {
@@ -111,8 +120,8 @@ export default function Page() {
               onClick={() => setLang(l => l === "en" ? "es" : "en")}
               className="px-3 py-1.5 gap-2 cursor-pointer text-xs font-bold text-slate-400 border border-slate-700 rounded hover:bg-slate-800 transition"
             >
-              {lang === "en" 
-                ? <div className="flex flex-row gap-2"><span>🇦🇷</span><span>ES</span></div> 
+              {lang === "en"
+                ? <div className="flex flex-row gap-2"><span>🇦🇷</span><span>ES</span></div>
                 : <div className="flex flex-row gap-2"><span>🇺🇸</span><span>EN</span></div>}
             </button>
 
@@ -157,7 +166,7 @@ export default function Page() {
         ) : (
           <div className="space-y-6 animate-in fade-in duration-500">
 
-            {/* USUARIO CONECTADO (OPCIONAL) */} 
+            {/* USUARIO CONECTADO (OPCIONAL) */}
             <div className="flex justify-end">
               <span className="text-[10px] font-mono text-slate-600">{session.user?.email}</span>
             </div>
