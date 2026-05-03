@@ -171,7 +171,12 @@ export default function Page() {
             setProgress({ current: parsed.current, total: parsed.total });
           }
           if (parsed.type === "rate_limit") {
-            console.warn(`Rate limit alcanzado, esperando ${Math.ceil(parsed.waitMs / 1000)}s...`);
+            console.warn(`⏳ Rate limit alcanzado, esperando ${Math.ceil(parsed.waitMs / 1000)}s...`);
+          }
+          if (parsed.type === "log") {
+            if (parsed.level === "warn") console.warn(`[server] ${parsed.message}`);
+            else if (parsed.level === "error") console.error(`[server] ${parsed.message}`);
+            else console.log(`[server] ${parsed.message}`);
           }
           if (parsed.type === "done") {
             setLoading(false);
