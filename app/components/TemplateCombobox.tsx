@@ -53,10 +53,10 @@ export default function TemplateCombobox({ templates, value, onChange, loading, 
             <li
               key={t.id}
               onMouseDown={() => { onChange(t.name); setShowSuggestions(false); }}
-              className="px-3 py-2 text-sm text-slate-300 hover:bg-slate-800 hover:text-sky-400 cursor-pointer transition-colors flex gap-2"
+              className="px-3 py-2 text-sm text-slate-300 hover:bg-slate-800 hover:text-sky-400 cursor-pointer transition-colors flex justify-between items-center gap-2"
             >
-              <span className="text-slate-600 text-[10px] w-4 shrink-0 mt-0.5">{index + 1}</span>
-              {t.name}
+              <span>{t.name}</span>
+              <span className="text-slate-600 shrink-0">{index + 1}</span>
             </li>
           ))}
         </ul>
