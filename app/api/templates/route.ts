@@ -5,8 +5,8 @@ export const dynamic = 'force-dynamic';
 interface GitHubRepo {
   id: number;
   name: string;
-  description: string | null;
   is_template: boolean;
+  pushed_at: string; // ← agregás esto
 }
 
 async function fetchPage(org: string, token: string, page: number): Promise<GitHubRepo[]> {
@@ -66,11 +66,12 @@ export async function GET(req: NextRequest) {
       allTemplates = [...allTemplates, ...templates];
     }
 
-    const response = allTemplates.map((repo) => ({
-      id: repo.id,
-      name: repo.name,
-      description: repo.description ?? "Sin descripción",
-    }));
+    const response = allTemplates
+      .sort((a, b) => new Date(b.pushed_at).getTime() - new Date(a.pushed_at).getTime())
+      .map((repo) => ({
+        id: repo.id,
+        name: repo.name,
+      }));
 
     return NextResponse.json(response);
 

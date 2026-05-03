@@ -3,6 +3,7 @@
 
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
+import TemplateCombobox from "./components/TemplateCombobox";
 
 const content = {
   en: {
@@ -65,28 +66,35 @@ export default function Page() {
   const [loading, setLoading] = useState(false);
   const [orgs, setOrgs] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
 
   const t = content[lang];
 
+  //Fetch orgas
   useEffect(() => {
     if (!session?.accessToken) return;
     fetch("/api/orgs", { headers: { Authorization: `Bearer ${session.accessToken}` } })
       .then(res => res.json()).then(data => setOrgs(data));
   }, [session]);
 
+  //Fetch templates
   useEffect(() => {
     if (!org || !session?.accessToken) {
       setTemplates([]);
+      setTemplate("");
       return;
     }
 
-    setTemplates([]); // ← limpia inmediatamente antes del fetch
+    setTemplates([]);
+    setTemplate("");
+    setLoadingTemplates(true);
 
     fetch(`/api/templates?org=${org}`, {
       headers: { Authorization: `Bearer ${session.accessToken}` }
     })
       .then(res => res.json())
-      .then(data => { if (Array.isArray(data)) setTemplates(data); });
+      .then(data => { if (Array.isArray(data)) setTemplates(data); })
+      .finally(() => setLoadingTemplates(false));
   }, [org, session]);
 
   const handleSubmit = async () => {
@@ -205,17 +213,17 @@ export default function Page() {
 
             {/* TEMPLATE */}
             <div className="pt-1 border-t border-slate-800/50 mb-10">
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.template}</label>
-              <input
-                list="templates-datalist"
-                placeholder={t.templatePlaceholder}
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                {t.template}
+              </label>
+              <TemplateCombobox
+                templates={templates}
                 value={template}
-                onChange={(e) => setTemplate(e.target.value)}
-                className="mt-2 w-full bg-[#0a0f1e] border border-slate-700 rounded-md p-2 text-sm outline-none focus:border-[#38bdf8] transition"
+                onChange={setTemplate}
+                loading={loadingTemplates}
+                placeholder={t.templatePlaceholder}
+                loadingPlaceholder={lang === "es" ? "Cargando templates..." : "Loading templates..."}
               />
-              <datalist id="templates-datalist">
-                {templates.map((t) => <option key={t.id} value={t.name}>{t.name}</option>)}
-              </datalist>
             </div>
 
             {/* VISIBILIDAD */}
