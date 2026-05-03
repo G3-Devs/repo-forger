@@ -25,7 +25,7 @@ export default function TemplateCombobox({ templates, value, onChange, loading, 
   );
 
   return (
-    <div className="relative mt-2">
+    <div className="relative w-full">
       <input
         value={value}
         disabled={loading}

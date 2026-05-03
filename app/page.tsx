@@ -15,6 +15,8 @@ const content = {
     preview: "Generated repositories will have the structure:",
     template: "Origin template",
     templatePlaceholder: "Write or select template repo name...",
+    loadingTemplatesPlaceholder: "Loading templates...",
+    refreshTemplates: "Refresh templates",
     visibility: "Choose visibility",
     public: "Public",
     publicDesc: "Anyone can see these repositories.",
@@ -38,6 +40,8 @@ const content = {
     preview: "Estructura de los repositorios que se generarán:",
     template: "Plantilla origen",
     templatePlaceholder: "Escribí o seleccioná el nombre de la plantilla...",
+    loadingTemplatesPlaceholder: "Cargando plantillas...",
+    refreshTemplates: "Actualizar plantillas",
     visibility: "Elegir visibilidad",
     public: "Público",
     publicDesc: "Cualquiera puede ver estos repositorios.",
@@ -70,14 +74,29 @@ export default function Page() {
 
   const t = content[lang];
 
-  //Fetch orgas
+  //Fetch orgas (cachea en sessionStorage para no recargar)
   useEffect(() => {
     if (!session?.accessToken) return;
+
+    const cacheKey = `orgs_${session.accessToken}`;
+    const cached = sessionStorage.getItem(cacheKey);
+
+    if (cached) {
+      setOrgs(JSON.parse(cached));
+      return;
+    }
+
     fetch("/api/orgs", { headers: { Authorization: `Bearer ${session.accessToken}` } })
-      .then(res => res.json()).then(data => setOrgs(data));
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setOrgs(data);
+          sessionStorage.setItem(cacheKey, JSON.stringify(data));
+        }
+      });
   }, [session]);
 
-  //Fetch templates
+  //Fetch templates (cachea en s>ssionStorage para no recargar)
   useEffect(() => {
     if (!org || !session?.accessToken) {
       setTemplates([]);
@@ -87,13 +106,27 @@ export default function Page() {
 
     setTemplates([]);
     setTemplate("");
+
+    const cacheKey = `templates_${org}`;
+    const cached = sessionStorage.getItem(cacheKey);
+
+    if (cached) {
+      setTemplates(JSON.parse(cached));
+      return;
+    }
+
     setLoadingTemplates(true);
 
     fetch(`/api/templates?org=${org}`, {
       headers: { Authorization: `Bearer ${session.accessToken}` }
     })
       .then(res => res.json())
-      .then(data => { if (Array.isArray(data)) setTemplates(data); })
+      .then(data => {
+        if (Array.isArray(data)) {
+          setTemplates(data);
+          sessionStorage.setItem(cacheKey, JSON.stringify(data));
+        }
+      })
       .finally(() => setLoadingTemplates(false));
   }, [org, session]);
 
@@ -109,6 +142,26 @@ export default function Page() {
       const data = await res.json();
       setResult(data.results || []);
     } finally { setLoading(false); }
+  };
+
+  const refreshTemplates = () => {
+    if (!org) return;
+    sessionStorage.removeItem(`templates_${org}`);
+    setTemplates([]);
+    setTemplate("");
+    setLoadingTemplates(true);
+
+    fetch(`/api/templates?org=${org}`, {
+      headers: { Authorization: `Bearer ${session?.accessToken}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setTemplates(data);
+          sessionStorage.setItem(`templates_${org}`, JSON.stringify(data));
+        }
+      })
+      .finally(() => setLoadingTemplates(false));
   };
 
   return (
@@ -129,8 +182,8 @@ export default function Page() {
               className="px-3 py-1.5 gap-2 cursor-pointer text-xs font-bold text-slate-400 border border-slate-700 rounded hover:bg-slate-800 transition"
             >
               {lang === "en"
-                ? <div className="flex flex-row gap-2"><span>🇦🇷</span><span>ES</span></div>
-                : <div className="flex flex-row gap-2"><span>🇺🇸</span><span>EN</span></div>}
+                ? <div className="flex flex-row gap-2"><span>🇺🇸</span><span>EN</span></div>
+                : <div className="flex flex-row gap-2"><span>🇦🇷</span><span>ES</span></div>}
             </button>
 
             {/* BOTÓN CERRAR SESIÓN (NUEVO) */}
@@ -216,14 +269,42 @@ export default function Page() {
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
                 {t.template}
               </label>
-              <TemplateCombobox
-                templates={templates}
-                value={template}
-                onChange={setTemplate}
-                loading={loadingTemplates}
-                placeholder={t.templatePlaceholder}
-                loadingPlaceholder={lang === "es" ? "Cargando templates..." : "Loading templates..."}
-              />
+              <div className="flex items-stretch gap-2 mt-2">
+                <TemplateCombobox
+                  templates={templates}
+                  value={template}
+                  onChange={setTemplate}
+                  loading={loadingTemplates}
+                  placeholder={t.templatePlaceholder}
+                  loadingPlaceholder={t.loadingTemplatesPlaceholder}
+                />
+                {org && (
+                  <button
+                    onClick={refreshTemplates}
+                    disabled={loadingTemplates}
+                    title={t.refreshTemplates}
+                    className="cursor-pointer shrink-0 px-3 text-slate-400 hover:text-sky-400 disabled:opacity-30 transition-all border border-slate-700 hover:border-sky-400/40 hover:bg-sky-400/5 rounded-md"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className={loadingTemplates ? "animate-spin" : "transition-transform hover:rotate-180 duration-300"}
+                    >
+                      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                      <path d="M21 3v5h-5" />
+                      <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                      <path d="M8 16H3v5" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* VISIBILIDAD */}
