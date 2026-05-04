@@ -74,6 +74,8 @@ export default function Page() {
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [pauseMessage, setPauseMessage] = useState("");
+  const [isDone, setIsDone] = useState(false);
 
   const t = content[lang];
 
@@ -135,6 +137,7 @@ export default function Page() {
 
   //Generar repos
   const handleSubmit = async () => {
+    setIsDone(false);
     const users = usersText.split("\n").map(u => u.trim()).filter(Boolean);
     if (!org || !template || users.length === 0) {
       return alert(lang === "en" ? "Please fill all fields" : "Por favor completá todos los campos");
@@ -142,53 +145,76 @@ export default function Page() {
 
     setLoading(true);
     setResult([]);
-    setProgress({ current: 0, total: 0 });
+    setProgress({ current: 0, total: users.length });
 
-    const res = await fetch("/api/process", {
-      method: "POST",
-      body: JSON.stringify({ org, template, repoBase, users, isPrivate, token: session?.accessToken }),
-    });
+    const globalStart = Date.now();
 
-    const reader = res.body!.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
+    const formatTime = (ms: number) => {
+      const s = Math.floor(ms / 1000);
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const sec = s % 60;
+      return `${h > 0 ? h + "h " : ""}${m > 0 ? m + "m " : ""}${sec}s`;
+    };
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+    for (let i = 0; i < users.length; i++) {
+      const username = users[i];
+      const repoName = `${repoBase}-${username}`;
+      const repoStart = Date.now();
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
+      setProgress({ current: i + 1, total: users.length });
+      console.log(`[${i + 1}/${users.length}] Creando: ${repoName}`);
 
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        try {
-          const parsed = JSON.parse(line);
+      try {
+        const res = await fetch("/api/process-one", {
+          method: "POST",
+          body: JSON.stringify({
+            org, template, repoName, username, isPrivate,
+            token: session?.accessToken,
+          }),
+        });
 
-          if (parsed.type === "result") {
-            setResult(prev => [...prev, parsed]);
-          }
-          if (parsed.type === "progress") {
-            setProgress({ current: parsed.current, total: parsed.total });
-          }
-          if (parsed.type === "rate_limit") {
-            console.warn(`⏳ Rate limit alcanzado, esperando ${Math.ceil(parsed.waitMs / 1000)}s...`);
-          }
-          if (parsed.type === "log") {
-            if (parsed.level === "warn") console.warn(`[server] ${parsed.message}`);
-            else if (parsed.level === "error") console.error(`[server] ${parsed.message}`);
-            else console.log(`[server] ${parsed.message}`);
-          }
-          if (parsed.type === "done") {
-            setLoading(false);
-            setTimeout(() => setProgress({ current: 0, total: 0 }), 2000);
-          }
-        } catch { /* línea incompleta, ignorar */ }
+        const data = await res.json();
+        const repoTime = formatTime(Date.now() - repoStart);
+        const totalTime = formatTime(Date.now() - globalStart);
+
+        if (data.status === "error" && data.detail === "Throttle agotado tras 3 reintentos") {
+          const pauseMinutes = 10;
+          console.warn(`⛔ GitHub secondary rate limit. Esperando ${pauseMinutes} minutos... | total: ${totalTime}`);
+          setPauseMessage(lang === "es" ? "⏸ Pausa automática (10 min)..." : "⏸ Auto pause (10 min)...");
+          await new Promise(r => setTimeout(r, pauseMinutes * 60 * 1000));
+          setPauseMessage("");
+          console.log(`✓ Reanudando tras pausa`);
+          i--;
+          continue;
+        }
+
+        if (data.status === "ok") {
+          console.log(`✓ ${repoName} — repo: ${repoTime} | total: ${totalTime}`);
+          setResult(prev => [...prev, { username, status: "ok" }]);
+        } else {
+          console.error(`✗ ${repoName} error en ${data.step} — repo: ${repoTime} | total: ${totalTime}`, data.detail);
+          setResult(prev => [...prev, { username, status: "error", step: data.step, detail: data.detail }]);
+        }
+      } catch (err) {
+        const repoTime = formatTime(Date.now() - repoStart);
+        console.error(`✗ ${repoName} excepción — repo: ${repoTime}`, err);
+        setResult(prev => [...prev, { username, status: "error", step: "exception", detail: String(err) }]);
+      }
+
+      if (i < users.length - 1) {
+        await new Promise(r => setTimeout(r, 1000));
       }
     }
 
-    setLoading(false);
+    const totalTime = formatTime(Date.now() - globalStart);
+    console.log(`\n✅ Proceso completo: ${users.length} repos en ${totalTime}`);
+
+    setIsDone(true);
+    setTimeout(() => {
+      setProgress({ current: 0, total: 0 });
+      setIsDone(false);
+    }, 2000);
   };
 
   const refreshTemplates = () => {
@@ -378,8 +404,8 @@ export default function Page() {
               </div>
 
               {/* USERNAMES Y BOTÓN GENERAR*/}
-              <div className="space-y-4 pt-1 border-t border-slate-800/50">
-                <div className="flex justify-between">
+              <div className="pt-1 border-t border-slate-800/50">
+                <div className="pt-2 flex justify-between items-start">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.students}</label>
                   <button
                     onClick={() => setShowDeleteModal(true)}
@@ -396,7 +422,7 @@ export default function Page() {
                   placeholder={"Username_1\nUsername_2\n..."}
                 />
                 {/* Botón generar */}
-                <div className="flex flex-col items-end">
+                <div className="pt-5 flex flex-col items-end">
                   {/* Botón */}
                   <button
                     onClick={handleSubmit}
@@ -419,7 +445,7 @@ export default function Page() {
                     {/* Texto con transiciones */}
                     <span className="relative z-10 flex items-center justify-center gap-2">
                       {loading ? (
-                        progress.current >= progress.total && progress.total > 0 ? (
+                        isDone ? (
                           // Estado: ¡Listo!
                           <span className="flex items-center gap-2 text-emerald-400 animate-in fade-in duration-500">
                             <img src="/icon.png" width={16} height={16} alt="" className="rounded-sm" />
@@ -428,13 +454,25 @@ export default function Page() {
                         ) : (
                           // Estado: cargando
                           <span className="flex items-center gap-2 animate-in fade-in duration-300">
-                            <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-                              <path d="M21 3v5h-5" />
-                              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-                              <path d="M8 16H3v5" />
-                            </svg>
-                            {lang === "es" ? "Forjando..." : "Forging..."}
+                            {pauseMessage ? (
+                              <>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <rect x="6" y="4" width="4" height="16" />
+                                  <rect x="14" y="4" width="4" height="16" />
+                                </svg>
+                                {pauseMessage}
+                              </>
+                            ) : (
+                              <>
+                                <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                                  <path d="M21 3v5h-5" />
+                                  <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                                  <path d="M8 16H3v5" />
+                                </svg>
+                                {lang === "es" ? "Forjando..." : "Forging..."}
+                              </>
+                            )}
                           </span>
                         )
                       ) : (
