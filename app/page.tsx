@@ -1,9 +1,10 @@
 "use client";
 
 import { signIn, signOut, useSession } from "next-auth/react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import TemplateCombobox from "./components/TemplateCombobox";
 import DeleteReposModal from "./components/DeleteReposModal";
+import ConfirmProcessModal from "./components/ConfirmProcessModal";
 
 const content = {
   en: {
@@ -24,7 +25,6 @@ const content = {
     privateDesc: "You choose who can see and commit.",
     students: "Students GitHub usernames (one per line)",
     button: "Generate repositories",
-    processing: "Forging repositories...",
     results: "Process Results:",
     login: "Sign in with GitHub",
     logout: "Sign out",
@@ -49,7 +49,6 @@ const content = {
     privateDesc: "Vos elegís quién puede ver y commitear.",
     students: "Nombres de usuario de GitHub de l@s alumn@s (uno por línea)",
     button: "Generar repositorios",
-    processing: "Forjando repositorios...",
     results: "Resultados del proceso:",
     login: "Iniciar sesión con GitHub",
     logout: "Cerrar sesión",
@@ -57,6 +56,9 @@ const content = {
     language: "Cambiar idioma"
   }
 };
+
+const SECONDS_PER_REPO = 7;
+const CONFIRM_THRESHOLD = 50;
 
 export default function Page() {
   const { data: session } = useSession();
@@ -74,6 +76,11 @@ export default function Page() {
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingUsers, setPendingUsers] = useState<string[]>([]);
+  const [estimatedTime, setEstimatedTime] = useState("");
+  const [pauseMessage, setPauseMessage] = useState("");
+  const [pauseCountdown, setPauseCountdown] = useState(0);
 
   const t = content[lang];
 
@@ -128,26 +135,29 @@ export default function Page() {
       .finally(() => setLoadingTemplates(false));
   };
 
-  const handleSubmit = async () => {
-    const users = usersText.split("\n").map(u => u.trim()).filter(Boolean);
-    if (!org || !template || users.length === 0) {
-      return alert(lang === "en" ? "Please fill all fields" : "Por favor completá todos los campos");
-    }
+  const formatTime = (ms: number) => {
+    const s = Math.floor(ms / 1000);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    return `${h > 0 ? h + "h " : ""}${m > 0 ? m + "m " : ""}${sec}s`;
+  };
 
+  const calcEstimatedTime = (count: number) => {
+    const totalSeconds = count * SECONDS_PER_REPO;
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    return `${h > 0 ? h + "h " : ""}${m > 0 ? m + "m " : ""}${s}s`;
+  };
+
+  const runProcess = async (users: string[]) => {
     setLoading(true);
     setIsDone(false);
     setResult([]);
     setProgress({ current: 0, total: users.length });
 
     const globalStart = Date.now();
-
-    const formatTime = (ms: number) => {
-      const s = Math.floor(ms / 1000);
-      const h = Math.floor(s / 3600);
-      const m = Math.floor((s % 3600) / 60);
-      const sec = s % 60;
-      return `${h > 0 ? h + "h " : ""}${m > 0 ? m + "m " : ""}${sec}s`;
-    };
 
     for (let i = 0; i < users.length; i++) {
       const username = users[i];
@@ -169,6 +179,28 @@ export default function Page() {
         const data = await res.json();
         const repoTime = formatTime(Date.now() - repoStart);
         const totalTime = formatTime(Date.now() - globalStart);
+
+        if (data.status === "error" && data.detail === "secondary_rate_limit") {
+          const waitSeconds = data.retryAfter || 60;
+          console.warn(`⛔ Secondary rate limit. Esperando ${waitSeconds}s... | total: ${totalTime}`);
+          setPauseMessage(lang === "es" ? "⏸ Pausa automática" : "⏸ Auto pause");
+          setPauseCountdown(waitSeconds);
+
+          await new Promise<void>(resolve => {
+            let remaining = waitSeconds;
+            const interval = setInterval(() => {
+              remaining--;
+              setPauseCountdown(remaining);
+              if (remaining <= 0) { clearInterval(interval); resolve(); }
+            }, 1000);
+          });
+
+          setPauseMessage("");
+          setPauseCountdown(0);
+          console.log(`✓ Reanudando`);
+          i--;
+          continue;
+        }
 
         if (data.status === "ok") {
           console.log(`✓ ${repoName} — repo: ${repoTime} | total: ${totalTime}`);
@@ -197,6 +229,22 @@ export default function Page() {
       setProgress({ current: 0, total: 0 });
       setIsDone(false);
     }, 2000);
+  };
+
+  const handleSubmit = async () => {
+    const users = usersText.split("\n").map(u => u.trim()).filter(Boolean);
+    if (!org || !template || users.length === 0) {
+      return alert(lang === "en" ? "Please fill all fields" : "Por favor completá todos los campos");
+    }
+
+    if (users.length > CONFIRM_THRESHOLD) {
+      setEstimatedTime(calcEstimatedTime(users.length));
+      setPendingUsers(users);
+      setShowConfirmModal(true);
+      return;
+    }
+
+    await runProcess(users);
   };
 
   return (
@@ -340,7 +388,6 @@ export default function Page() {
 
               {/* USERNAMES Y BOTÓN GENERAR */}
               <div className="pt-1 border-t border-slate-800/50">
-                {/* BOTÓN ELIMINAR REPOS */}
                 <div className="flex justify-between pt-2">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.students}</label>
                   <button
@@ -350,7 +397,7 @@ export default function Page() {
                     {lang === "es" ? "Eliminar repos" : "Delete repos"}
                   </button>
                 </div>
-                
+
                 <textarea
                   rows={5}
                   value={usersText}
@@ -358,6 +405,7 @@ export default function Page() {
                   className="mt-5 w-full bg-[#0a0f1e] border border-slate-700 rounded-md p-3 text-sm font-mono outline-none focus:border-[#38bdf8] resize-none transition"
                   placeholder={"Username_1\nUsername_2\n..."}
                 />
+
                 <div className="mt-4 flex flex-col items-end">
                   <button
                     onClick={handleSubmit}
@@ -386,13 +434,25 @@ export default function Page() {
                           </span>
                         ) : (
                           <span className="flex items-center gap-2 animate-in fade-in duration-300">
-                            <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-                              <path d="M21 3v5h-5" />
-                              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-                              <path d="M8 16H3v5" />
-                            </svg>
-                            {lang === "es" ? "Forjando..." : "Forging..."}
+                            {pauseMessage ? (
+                              <>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <rect x="6" y="4" width="4" height="16" />
+                                  <rect x="14" y="4" width="4" height="16" />
+                                </svg>
+                                {pauseMessage}
+                              </>
+                            ) : (
+                              <>
+                                <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                                  <path d="M21 3v5h-5" />
+                                  <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                                  <path d="M8 16H3v5" />
+                                </svg>
+                                {lang === "es" ? "Forjando..." : "Forging..."}
+                              </>
+                            )}
                           </span>
                         )
                       ) : (
@@ -403,8 +463,12 @@ export default function Page() {
                       )}
                     </span>
                   </button>
-                  <div className={`max-w-48 text-right mt-2 text-xs text-slate-500 font-mono transition-opacity duration-500 ${loading && progress.total > 0 ? "opacity-100" : "opacity-0"}`}>
-                    {progress.current} / {progress.total} ({Math.round((progress.current / progress.total) * 100)}%)
+
+                  <div className={`max-w-48 text-right mt-2 text-xs font-mono transition-opacity duration-500 ${loading && progress.total > 0 ? "opacity-100" : "opacity-0"}`}>
+                    {pauseMessage
+                      ? <span className="text-amber-400">{pauseMessage} — {Math.floor(pauseCountdown / 60)}:{String(pauseCountdown % 60).padStart(2, "0")}</span>
+                      : <span className="text-slate-500">{progress.current} / {progress.total} ({Math.round((progress.current / progress.total) * 100)}%)</span>
+                    }
                   </div>
                 </div>
               </div>
@@ -431,6 +495,7 @@ export default function Page() {
 
         </div>
       </main>
+
       <DeleteReposModal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
@@ -439,6 +504,14 @@ export default function Page() {
         token={session?.accessToken || ""}
         lang={lang}
         orgs={orgs}
+      />
+      <ConfirmProcessModal
+        isOpen={showConfirmModal}
+        onConfirm={() => { setShowConfirmModal(false); runProcess(pendingUsers); }}
+        onCancel={() => { setShowConfirmModal(false); setPendingUsers([]); }}
+        repoCount={pendingUsers.length}
+        estimatedTime={estimatedTime}
+        lang={lang}
       />
     </>
   );
