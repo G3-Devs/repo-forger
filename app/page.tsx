@@ -1,8 +1,7 @@
-// app/page.tsx
 "use client";
 
 import { signIn, signOut, useSession } from "next-auth/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import TemplateCombobox from "./components/TemplateCombobox";
 import DeleteReposModal from "./components/DeleteReposModal";
 
@@ -37,7 +36,7 @@ const content = {
     subtitle: "Generación masiva de repositorios para estudiantes",
     owner: "Organización",
     prefix: "Prefijo del repo",
-    prefixPlaceholder: "Escribí el perfijo del repositorio...",
+    prefixPlaceholder: "Escribí el prefijo del repositorio...",
     preview: "Estructura de los repositorios que se generarán:",
     template: "Plantilla origen",
     templatePlaceholder: "Escribí o seleccioná el nombre de la plantilla...",
@@ -69,28 +68,21 @@ export default function Page() {
   const [isPrivate, setIsPrivate] = useState(false);
   const [result, setResult] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isDone, setIsDone] = useState(false);
   const [orgs, setOrgs] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [pauseMessage, setPauseMessage] = useState("");
-  const [isDone, setIsDone] = useState(false);
 
   const t = content[lang];
 
-  //Fetch orgas (cachea en sessionStorage para no recargar)
+  // Fetch orgas
   useEffect(() => {
     if (!session?.accessToken) return;
-
     const cacheKey = `orgs_${session.accessToken}`;
     const cached = sessionStorage.getItem(cacheKey);
-
-    if (cached) {
-      setOrgs(JSON.parse(cached));
-      return;
-    }
-
+    if (cached) { setOrgs(JSON.parse(cached)); return; }
     fetch("/api/orgs", { headers: { Authorization: `Bearer ${session.accessToken}` } })
       .then(res => res.json())
       .then(data => {
@@ -101,30 +93,15 @@ export default function Page() {
       });
   }, [session]);
 
-  //Fetch templates (cachea en sessionStorage para no recargar)
+  // Fetch templates
   useEffect(() => {
-    if (!org || !session?.accessToken) {
-      setTemplates([]);
-      setTemplate("");
-      return;
-    }
-
-    setTemplates([]);
-    setTemplate("");
-
+    if (!org || !session?.accessToken) { setTemplates([]); setTemplate(""); return; }
+    setTemplates([]); setTemplate("");
     const cacheKey = `templates_${org}`;
     const cached = sessionStorage.getItem(cacheKey);
-
-    if (cached) {
-      setTemplates(JSON.parse(cached));
-      return;
-    }
-
+    if (cached) { setTemplates(JSON.parse(cached)); return; }
     setLoadingTemplates(true);
-
-    fetch(`/api/templates?org=${org}`, {
-      headers: { Authorization: `Bearer ${session.accessToken}` }
-    })
+    fetch(`/api/templates?org=${org}`, { headers: { Authorization: `Bearer ${session.accessToken}` } })
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) {
@@ -135,15 +112,30 @@ export default function Page() {
       .finally(() => setLoadingTemplates(false));
   }, [org, session]);
 
-  //Generar repos
+  const refreshTemplates = () => {
+    if (!org) return;
+    sessionStorage.removeItem(`templates_${org}`);
+    setTemplates([]); setTemplate("");
+    setLoadingTemplates(true);
+    fetch(`/api/templates?org=${org}`, { headers: { Authorization: `Bearer ${session?.accessToken}` } })
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setTemplates(data);
+          sessionStorage.setItem(`templates_${org}`, JSON.stringify(data));
+        }
+      })
+      .finally(() => setLoadingTemplates(false));
+  };
+
   const handleSubmit = async () => {
-    setIsDone(false);
     const users = usersText.split("\n").map(u => u.trim()).filter(Boolean);
     if (!org || !template || users.length === 0) {
       return alert(lang === "en" ? "Please fill all fields" : "Por favor completá todos los campos");
     }
 
     setLoading(true);
+    setIsDone(false);
     setResult([]);
     setProgress({ current: 0, total: users.length });
 
@@ -178,17 +170,6 @@ export default function Page() {
         const repoTime = formatTime(Date.now() - repoStart);
         const totalTime = formatTime(Date.now() - globalStart);
 
-        if (data.status === "error" && data.detail === "Throttle agotado tras 3 reintentos") {
-          const pauseMinutes = 10;
-          console.warn(`⛔ GitHub secondary rate limit. Esperando ${pauseMinutes} minutos... | total: ${totalTime}`);
-          setPauseMessage(lang === "es" ? "⏸ Pausa automática (10 min)..." : "⏸ Auto pause (10 min)...");
-          await new Promise(r => setTimeout(r, pauseMinutes * 60 * 1000));
-          setPauseMessage("");
-          console.log(`✓ Reanudando tras pausa`);
-          i--;
-          continue;
-        }
-
         if (data.status === "ok") {
           console.log(`✓ ${repoName} — repo: ${repoTime} | total: ${totalTime}`);
           setResult(prev => [...prev, { username, status: "ok" }]);
@@ -203,7 +184,7 @@ export default function Page() {
       }
 
       if (i < users.length - 1) {
-        await new Promise(r => setTimeout(r, 1000));
+        await new Promise(r => setTimeout(r, 500));
       }
     }
 
@@ -212,44 +193,24 @@ export default function Page() {
 
     setIsDone(true);
     setTimeout(() => {
+      setLoading(false);
       setProgress({ current: 0, total: 0 });
       setIsDone(false);
     }, 2000);
   };
 
-  const refreshTemplates = () => {
-    if (!org) return;
-    sessionStorage.removeItem(`templates_${org}`);
-    setTemplates([]);
-    setTemplate("");
-    setLoadingTemplates(true);
-
-    fetch(`/api/templates?org=${org}`, {
-      headers: { Authorization: `Bearer ${session?.accessToken}` }
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setTemplates(data);
-          sessionStorage.setItem(`templates_${org}`, JSON.stringify(data));
-        }
-      })
-      .finally(() => setLoadingTemplates(false));
-  };
-
   return (
     <>
-      <main className="min-h-screen bg-[#0a0f1e] text-[#d1d5db] flex flex-col items-center p-6 md:p-12 < selection:bg-[#38bdf8]/30">
+      <main className="min-h-screen bg-[#0a0f1e] text-[#d1d5db] flex flex-col items-center p-6 md:p-12 selection:bg-[#38bdf8]/30">
         <div className="w-full max-w-3xl space-y-8">
+
           {/* HEADER */}
           <div className="flex justify-between items-start pb-4">
             <div>
               <h1 className="text-xl font-bold text-sky-400 uppercase tracking-wider">{t.title}</h1>
               <p className="text-slate-500 text-sm mt-1">{t.subtitle}</p>
             </div>
-
             <div className="flex flex-row gap-2 items-end">
-              {/* BOTÓN DE IDIOMA */}
               <button
                 title={t.language}
                 onClick={() => setLang(l => l === "en" ? "es" : "en")}
@@ -259,29 +220,15 @@ export default function Page() {
                   ? <div className="flex flex-row gap-2"><span>🇺🇸</span><span>EN</span></div>
                   : <div className="flex flex-row gap-2"><span>🇦🇷</span><span>ES</span></div>}
               </button>
-
-              {/* BOTÓN CERRAR SESIÓN (NUEVO) */}
               {session && (
                 <div className="flex items-center gap-3">
-                  <span className="text-[10px] font-mono text-slate-600 hidden sm:block">
-                    {session.user?.email}
-                  </span>
+                  <span className="text-[10px] font-mono text-slate-600 hidden sm:block">{session.user?.email}</span>
                   <button
                     onClick={() => signOut()}
-                    title={t.logout} // Muestra el texto al pasar el mouse
-                    className="cursor-pointer p-2 rounded-md border border-slate-800 hover:border-rose-900/50 hover:bg-rose-950/20 text-slate-500 hover:text-rose-400 transition-all group"
+                    title={t.logout}
+                    className="cursor-pointer p-2 rounded-md border border-slate-800 hover:border-rose-900/50 hover:bg-rose-950/20 text-slate-500 hover:text-rose-400 transition-all"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="14"
-                      height="13"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                       <polyline points="16 17 21 12 16 7" />
                       <line x1="21" y1="12" x2="9" y2="12" />
@@ -301,7 +248,6 @@ export default function Page() {
           ) : (
             <div className="space-y-6 animate-in fade-in duration-500">
 
-              {/* USUARIO CONECTADO (OPCIONAL) */}
               <div className="flex justify-end">
                 <span className="text-[10px] font-mono text-slate-600">{session.user?.email}</span>
               </div>
@@ -320,9 +266,7 @@ export default function Page() {
                       {orgs.map((o) => <option key={o.id} value={o.login}>{o.login}</option>)}
                     </select>
                   </div>
-
                   <span className="hidden md:block text-3xl text-slate-700 mb-0.5 font-light">/</span>
-
                   <div className="flex flex-col gap-3 flex-[1.5]">
                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.prefix}</label>
                     <input
@@ -340,9 +284,7 @@ export default function Page() {
 
               {/* TEMPLATE */}
               <div className="pt-1 border-t border-slate-800/50 mb-10">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  {t.template}
-                </label>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.template}</label>
                 <div className="flex items-stretch gap-2 mt-2">
                   <TemplateCombobox
                     templates={templates}
@@ -360,15 +302,8 @@ export default function Page() {
                       className="cursor-pointer shrink-0 px-3 text-slate-400 hover:text-sky-400 disabled:opacity-30 transition-all border border-slate-700 hover:border-sky-400/40 hover:bg-sky-400/5 rounded-md"
                     >
                       <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="15"
-                        height="15"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
+                        xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                         className={loadingTemplates ? "animate-spin" : "transition-transform hover:rotate-180 duration-300"}
                       >
                         <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
@@ -403,17 +338,19 @@ export default function Page() {
                 </div>
               </div>
 
-              {/* USERNAMES Y BOTÓN GENERAR*/}
+              {/* USERNAMES Y BOTÓN GENERAR */}
               <div className="pt-1 border-t border-slate-800/50">
-                <div className="pt-2 flex justify-between items-start">
+                {/* BOTÓN ELIMINAR REPOS */}
+                <div className="flex justify-between pt-2">
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">{t.students}</label>
                   <button
                     onClick={() => setShowDeleteModal(true)}
                     className="px-3 py-1.5 text-xs font-bold text-rose-400/60 border border-rose-900/40 rounded-md hover:bg-rose-950/20 hover:text-rose-400 hover:border-rose-800 transition cursor-pointer"
                   >
-                    {lang === "es" ? "Eliminar repos..." : "Delete repos..."}
+                    {lang === "es" ? "Eliminar repos" : "Delete repos"}
                   </button>
                 </div>
+                
                 <textarea
                   rows={5}
                   value={usersText}
@@ -421,9 +358,7 @@ export default function Page() {
                   className="mt-5 w-full bg-[#0a0f1e] border border-slate-700 rounded-md p-3 text-sm font-mono outline-none focus:border-[#38bdf8] resize-none transition"
                   placeholder={"Username_1\nUsername_2\n..."}
                 />
-                {/* Botón generar */}
-                <div className="pt-5 flex flex-col items-end">
-                  {/* Botón */}
+                <div className="mt-4 flex flex-col items-end">
                   <button
                     onClick={handleSubmit}
                     disabled={loading}
@@ -434,49 +369,33 @@ export default function Page() {
                       backgroundColor: "transparent",
                     }}
                   >
-                    {/* Barra de progreso que llena el fondo */}
                     {loading && progress.total > 0 && (
                       <div
                         className="absolute inset-0 bg-sky-900/40 transition-all duration-500 ease-out origin-left"
                         style={{ transform: `scaleX(${progress.current / progress.total})` }}
                       />
                     )}
-
-                    {/* Texto con transiciones */}
                     <span className="relative z-10 flex items-center justify-center gap-2">
                       {loading ? (
                         isDone ? (
-                          // Estado: ¡Listo!
                           <span className="flex items-center gap-2 text-emerald-400 animate-in fade-in duration-500">
-                            <img src="/icon.png" width={16} height={16} alt="" className="rounded-sm" />
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
                             {lang === "es" ? "¡Listo!" : "Done!"}
                           </span>
                         ) : (
-                          // Estado: cargando
                           <span className="flex items-center gap-2 animate-in fade-in duration-300">
-                            {pauseMessage ? (
-                              <>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                  <rect x="6" y="4" width="4" height="16" />
-                                  <rect x="14" y="4" width="4" height="16" />
-                                </svg>
-                                {pauseMessage}
-                              </>
-                            ) : (
-                              <>
-                                <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-                                  <path d="M21 3v5h-5" />
-                                  <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-                                  <path d="M8 16H3v5" />
-                                </svg>
-                                {lang === "es" ? "Forjando..." : "Forging..."}
-                              </>
-                            )}
+                            <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                              <path d="M21 3v5h-5" />
+                              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                              <path d="M8 16H3v5" />
+                            </svg>
+                            {lang === "es" ? "Forjando..." : "Forging..."}
                           </span>
                         )
                       ) : (
-                        // Estado: idle
                         <span className="flex items-center gap-2 animate-in fade-in duration-300">
                           {t.button}
                           <img src="/icon.png" width={16} height={16} alt="" className="rounded-sm" />
@@ -484,12 +403,12 @@ export default function Page() {
                       )}
                     </span>
                   </button>
-                  {/* Contador */}
                   <div className={`max-w-48 text-right mt-2 text-xs text-slate-500 font-mono transition-opacity duration-500 ${loading && progress.total > 0 ? "opacity-100" : "opacity-0"}`}>
-                    Progreso: {progress.current} / {progress.total} ({Math.round((progress.current / progress.total) * 100)}%)
+                    {progress.current} / {progress.total} ({Math.round((progress.current / progress.total) * 100)}%)
                   </div>
                 </div>
               </div>
+
             </div>
           )}
 
@@ -509,6 +428,7 @@ export default function Page() {
               </div>
             </div>
           )}
+
         </div>
       </main>
       <DeleteReposModal
