@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import TemplateCombobox from "./components/TemplateCombobox";
 import DeleteReposModal from "./components/DeleteReposModal";
 import ConfirmProcessModal from "./components/ConfirmProcessModal";
+import UpdatePermissionsModal from "./components/UpdatePermissionsModal";
 
 const content = {
   en: {
@@ -76,6 +77,7 @@ export default function Page() {
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingUsers, setPendingUsers] = useState<string[]>([]);
   const [estimatedTime, setEstimatedTime] = useState("");
@@ -396,6 +398,12 @@ export default function Page() {
                   >
                     {lang === "es" ? "Eliminar repos" : "Delete repos"}
                   </button>
+                  <button
+                    onClick={() => setShowPermissionsModal(true)}
+                    className="px-3 py-1.5 text-xs font-bold text-amber-400/60 border border-amber-900/40 rounded-md hover:bg-amber-950/20 hover:text-amber-400 hover:border-amber-800 transition cursor-pointer"
+                  >
+                    {lang === "es" ? "Cambiar permisos" : "Change permissions"}
+                  </button>
                 </div>
 
                 <textarea
@@ -499,6 +507,15 @@ export default function Page() {
       <DeleteReposModal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
+        defaultOrg={org}
+        defaultPrefix={repoBase}
+        token={session?.accessToken || ""}
+        lang={lang}
+        orgs={orgs}
+      />
+      <UpdatePermissionsModal
+        isOpen={showPermissionsModal}
+        onClose={() => setShowPermissionsModal(false)}
         defaultOrg={org}
         defaultPrefix={repoBase}
         token={session?.accessToken || ""}
